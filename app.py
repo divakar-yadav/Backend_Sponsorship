@@ -55,7 +55,7 @@ auth_container = db.get_container_client("users")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "super-secret-key")
 
-@app.route('/predict', methods=['POST'])
+@app.route('/api/predict', methods=['POST'])
 def predict():
     try:
         if request.is_json:
@@ -101,7 +101,7 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/upload-data', methods=['POST'])
+@app.route('/api/upload-data', methods=['POST'])
 def upload_data():
     file = request.files['file']
     done_by = request.form.get("done_by", "Unknown User")
@@ -145,7 +145,7 @@ def upload_data():
         "dataset_id": dataset_id
     })
 
-@app.route('/download-dataset/<dataset_id>', methods=['GET'])
+@app.route('/api/download-dataset/<dataset_id>', methods=['GET'])
 def download_dataset(dataset_id):
     try:
         dataset_meta_container = db.get_container_client("datasets")
@@ -263,7 +263,7 @@ def train_model_logic(file_stream, filename, dataset_id, model_meta, dataset_con
     }
 
 
-@app.route('/train-model', methods=['POST'])
+@app.route('/api/train-model', methods=['POST'])
 def train_model():
     try:
         data = request.get_json()
@@ -326,12 +326,12 @@ def get_milwaukee_companies():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/training-status', methods=['GET'])
+@app.route('/api/training-status', methods=['GET'])
 def training_status():
     status = training_meta.read_item(item="latest", partition_key="latest").get('status', 'unknown')
     return jsonify(status=status)
 
-@app.route('/list-models', methods=['GET'])
+@app.route('/api/list-models', methods=['GET'])
 def list_models_from_db():
     try:
         # Fetch all model documents from the 'models' container
@@ -344,8 +344,9 @@ def list_models_from_db():
 
 
 
-@app.route('/list-training-data', methods=['GET'])
+@app.route('/api/list-training-data', methods=['GET'])
 def list_training_data():
+    print("Listing training data...")
     try:
         dataset_meta_container = db.get_container_client("datasets")
 
@@ -368,7 +369,7 @@ def list_training_data():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/list-companies', methods=['GET'])
+@app.route('/api/list-companies', methods=['GET'])
 def list_companies():
     try:
         query = "SELECT * FROM c WHERE c.city = 'Milwaukee'"
@@ -377,7 +378,7 @@ def list_companies():
     except exceptions.CosmosHttpResponseError as e:
         return jsonify(error=str(e)), 500
 
-@app.route('/models-meta-data', methods=['GET'])
+@app.route('/api/models-meta-data', methods=['GET'])
 def list_model_metadata():
     try:
         items = list(model_meta.read_all_items())
@@ -388,7 +389,7 @@ def list_model_metadata():
 
 
 
-@app.route('/deploy-model', methods=['POST'])
+@app.route('/api/deploy-model', methods=['POST'])
 def deploy_model():
     try:
         data = request.get_json()
