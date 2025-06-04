@@ -22,7 +22,7 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
-# CORS(app, origins=['http://localhost:3000'])
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://40.76.124.219"]}})
 
 UPLOAD_FOLDER = './temp_uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
