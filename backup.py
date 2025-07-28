@@ -336,44 +336,14 @@ def train_model():
 @app.route('/api/current-model-performance', methods=['GET'])
 def get_current_model_performance():
     try:
-        # Query for all current models of the three types
-        query = """
-        SELECT * FROM c 
-        WHERE c.status = 'Current' 
-        AND c.model_type IN ('Logistic', 'XGBoost', 'RandomForest')
-        """
-        current_models = list(model_meta.query_items(
-            query=query,
-            enable_cross_partition_query=True
-        ))
+        query = "SELECT * FROM c WHERE c.status = 'Current'"
+        current_models = list(model_meta.query_items(query=query, enable_cross_partition_query=True))
         
         if not current_models:
-            return jsonify({"error": "No current models found"}), 404
+            return jsonify({"error": "No current model found"}), 404
 
-        # Organize models by type
-        model_performance = {
-            "Logistic": None,
-            "XGBoost": None,
-            "RandomForest": None,
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        }
-
-        for model in current_models:
-            model_type = model.get("model_type")
-            if model_type in model_performance:
-                model_performance[model_type] = {
-                    "model_id": model.get("model_id"),
-                    "created_at": model.get("created_at"),
-                    "done_by": model.get("done_by"),
-                    "metrics": model.get("metrics", {}),
-                    "dataset_id": model.get("dataset_id"),
-                    "filename": model.get("filename")
-                }
-
-        return jsonify({
-            "status": "success",
-            "models": model_performance
-        })
+        model = current_models[0]  # Assuming only one model is Current
+        return jsonify(model)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -398,17 +368,10 @@ def training_status():
 @app.route('/api/list-models', methods=['GET'])
 def list_models_from_db():
     try:
-        model_type = request.args.get('model_type')
-        if model_type:
-            # Query for models of a specific type
-            query = "SELECT * FROM c WHERE c.model_type = @model_type"
-            parameters = [{"name": "@model_type", "value": model_type}]
-            models = list(model_meta.query_items(query=query, parameters=parameters, enable_cross_partition_query=True))
-        else:
-            # Fetch all model documents from the 'models' container
-            models = list(model_meta.read_all_items())
+        # Fetch all model documents from the 'models' container
+        models = list(model_meta.read_all_items())
 
-        # Return the filtered or entire list of model metadata
+        # Return the entire list of model metadata
         return jsonify({"models": models})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1025,73 +988,6 @@ def train_model_xgboost():
             "model_type": "XGBoost"
         })
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/search-companies', methods=['GET'])
-def search_companies():
-    try:
-        # Get search query from request parameters
-        search_query = request.args.get('q', '').strip()
-        
-        if not search_query:
-            return jsonify({"error": "Search query 'q' parameter is required"}), 400
-        
-        # Build a flexible search query that searches across multiple fields
-        # Using CONTAINS for case-insensitive partial matching
-        query = """
-        SELECT * FROM c 
-        WHERE (
-            CONTAINS(c['Company Name'], @search_query, true) OR
-            CONTAINS(c['City'], @search_query, true) OR
-            CONTAINS(c['Tagline'], @search_query, true) OR
-            CONTAINS(c['Stock Symbol'], @search_query, true) OR
-            CONTAINS(c['Known Point of Contact'], @search_query, true)
-        )
-        """
-        
-        parameters = [{"name": "@search_query", "value": search_query}]
-        
-        # Execute the search query
-        search_results = list(company_meta.query_items(
-            query=query,
-            parameters=parameters,
-            enable_cross_partition_query=True
-        ))
-        
-        # Sort results by relevance (exact matches first, then partial matches)
-        def sort_key(company):
-            company_name = company.get('Company Name', '').lower()
-            city = company.get('City', '').lower()
-            tagline = company.get('Tagline', '').lower()
-            stock_symbol = company.get('Stock Symbol', '').lower()
-            contact = company.get('Known Point of Contact', '').lower()
-            
-            query_lower = search_query.lower()
-            
-            # Exact matches get highest priority
-            if query_lower in company_name or company_name in query_lower:
-                return 0
-            elif query_lower in city or city in query_lower:
-                return 1
-            elif query_lower in tagline or tagline in query_lower:
-                return 2
-            elif query_lower in stock_symbol or stock_symbol in query_lower:
-                return 3
-            elif query_lower in contact or contact in query_lower:
-                return 4
-            else:
-                return 5
-        
-        # Sort results by relevance
-        search_results.sort(key=sort_key)
-        
-        return jsonify({
-            "query": search_query,
-            "total_results": len(search_results),
-            "companies": search_results
-        })
-        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

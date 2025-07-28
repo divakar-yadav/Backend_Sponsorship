@@ -1,7 +1,13 @@
 from azure.cosmos import CosmosClient
-import uuid, datetime, re
-import random
+import uuid
+import datetime
+import pandas as pd
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 # Connect to Cosmos DB
 COSMOS_URL = os.getenv("COSMOS_DB_URL")
 COSMOS_KEY = os.getenv("COSMOS_DB_KEY")
@@ -16,46 +22,43 @@ for item in company_meta.query_items(
     enable_cross_partition_query=True
 ):
     company_meta.delete_item(item=item['id'], partition_key='Milwaukee')
-print("✅ Old companies removed.")
+print("✅ Old test companies removed.")
 
-# Hardcoded Milwaukee companies with dummy financial data
-companies = [
-    ("Northwestern Mutual", 15.3, 16.2, 0.18, 2.1, 3),
-    ("Harley-Davidson", 13.9, 15.1, 0.14, 1.6, 5),
-    ("Fiserv", 15.0, 16.8, 0.20, 2.4, 2),
-    ("ManpowerGroup", 14.5, 15.6, 0.12, 1.2, 7),
-    ("Rockwell Automation", 14.2, 15.5, 0.17, 2.0, 6),
-    ("Johnson Controls", 15.1, 16.3, 0.19, 2.5, 1),
-    ("Brady Corporation", 13.1, 14.0, 0.13, 0.9, 10),
-    ("Badger Meter", 12.7, 13.6, 0.11, 0.8, 12),
-    ("REV Group", 13.5, 14.2, 0.10, 1.1, 11),
-    ("Direct Supply", 13.0, 13.8, 0.09, 0.7, 13),
-    ("MGIC Investment", 13.8, 14.5, 0.15, 1.3, 9),
-    ("WEC Energy Group", 14.6, 15.7, 0.21, 2.2, 4),
-    ("Marcus Corporation", 12.6, 13.5, 0.08, 0.6, 14),
-    ("A. O. Smith Corporation", 13.9, 14.7, 0.16, 1.4, 8),
-    ("Zurn Elkay Water Solutions", 13.2, 14.1, 0.12, 1.0, 15),
-    ("GE HealthCare", 15.2, 16.4, 0.22, 2.6, 16),
-    ("Sensient Technologies", 13.4, 14.3, 0.10, 0.9, 17),
-    ("Joy Global (Komatsu)", 14.1, 15.0, 0.13, 1.5, 18),
-    ("Astronautics Corporation", 12.8, 13.9, 0.07, 0.5, 19),
-    ("Pentair", 14.0, 15.2, 0.18, 1.9, 20),
-]
+# Load company data from CSV
+csv_path = "company_prospects_extracted.csv"  # Path to your CSV file
+df = pd.read_csv(csv_path)
 
-# Ingest real company data
-print("📥 Ingesting Milwaukee companies...")
-for name, rev, val, margin, share, rank in companies:
+print("📥 Ingesting companies from CSV...")
+for _, row in df.iterrows():
     company_doc = {
         "id": str(uuid.uuid4()),
-        "Company Name": name,
-        "Annual Revenue in Log": rev,
-        "Market Valuation in Log": val,
-        "Profit Margins": margin,
-        "Market Share": share,
-        "Industry Ranking": rank,
-        "Distance": round(random.uniform(1.0, 10.0), 2),
-        "city": "Milwaukee",
-        "created_at": datetime.datetime.utcnow().isoformat()
+        "Company Name": row["company_name"],
+        "Stock Symbol": row.get("stock_symbol", ""),
+        "Tagline": row.get("tagline", ""),
+        "Annual Revenue in Log": float(row.get("annual_revenue_log", 0)),
+        "Market Valuation in Log": float(row.get("market_valuation_log", 0)),
+        "Profit Margins": float(row.get("profit_margins", 0)),
+        "Market Share": float(row.get("market_share", 0)),
+        "Industry Ranking": int(row.get("industry_ranking", 0)),
+        "Distance": float(row.get("distance", 0)),
+        "Known Point of Contact": row.get("known_point_of_contact", ""),
+        "City": row.get("city", ""),
+        "Created At": row.get("created_at", datetime.datetime.utcnow().isoformat()),
+        
+        # Additional fields from CSV (preserving all data)
+        "annual_revenue": row.get("annual_revenue", 0),
+        "employee_count": row.get("employee_count", 0),
+        "mission_statement": row.get("mission_statement", ""),
+        "headquarters_location": row.get("headquarters_location", ""),
+        "key_contacts": row.get("key_contacts", ""),
+        "predicted_shared_values": row.get("predicted_shared_values", ""),
+        "early_stage_focus": row.get("early_stage_focus", ""),
+        "project_ideation": row.get("project_ideation", ""),
+        "existing_coe_projects": row.get("existing_coe_projects", ""),
+        "key_focus_areas": row.get("key_focus_areas", ""),
+        "assumptions": row.get("assumptions", ""),
+        "dependencies": row.get("dependencies", ""),
+        "past_higher_ed_giving": row.get("past_higher_ed_giving", "")
     }
     company_meta.create_item(company_doc)
 print("✅ Ingestion complete.")
