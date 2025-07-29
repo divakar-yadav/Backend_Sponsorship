@@ -1061,11 +1061,11 @@ def search_companies():
         
         # Sort results by relevance (exact matches first, then partial matches)
         def sort_key(company):
-            company_name = company.get('Company Name', '').lower()
-            city = company.get('City', '').lower()
-            tagline = company.get('Tagline', '').lower()
-            stock_symbol = company.get('Stock Symbol', '').lower()
-            contact = company.get('Known Point of Contact', '').lower()
+            company_name = str(company.get('Company Name', '')).lower()
+            city = str(company.get('City', '')).lower()
+            tagline = str(company.get('Tagline', '')).lower()
+            stock_symbol = str(company.get('Stock Symbol', '')).lower()
+            contact = str(company.get('Known Point of Contact', '')).lower()
             
             query_lower = search_query.lower()
             
