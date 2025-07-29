@@ -1095,5 +1095,69 @@ def search_companies():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/filter-companies', methods=['GET'])
+def filter_companies():
+    try:
+        # Get filter parameters from request
+        field_name = request.args.get('field')
+        field_value = request.args.get('value')
+        
+        if not field_name or not field_value:
+            return jsonify({
+                "error": "Both 'field' and 'value' parameters are required",
+                "example": "/api/filter-companies?field=City&value=Milwaukee"
+            }), 400
+        
+        # Validate field name to prevent injection attacks
+        allowed_fields = [
+            'Company Name', 'Stock Symbol', 'Tagline', 'City', 
+            'Known Point of Contact', 'Industry Ranking', 'Market Share',
+            'Profit Margins', 'Distance', 'annual_revenue', 'employee_count',
+            'mission_statement', 'headquarters_location', 'key_contacts',
+            'predicted_shared_values', 'early_stage_focus', 'project_ideation',
+            'existing_coe_projects', 'key_focus_areas', 'assumptions',
+            'dependencies', 'past_higher_ed_giving'
+        ]
+        
+        if field_name not in allowed_fields:
+            return jsonify({
+                "error": f"Invalid field name. Allowed fields: {', '.join(allowed_fields)}"
+            }), 400
+        
+        # Build the query based on field type
+        if field_name in ['Industry Ranking', 'Market Share', 'Profit Margins', 'Distance', 'annual_revenue', 'employee_count']:
+            # Numeric fields - try to convert value to number
+            try:
+                numeric_value = float(field_value)
+                query = f"SELECT * FROM c WHERE c['{field_name}'] = @field_value"
+            except ValueError:
+                return jsonify({
+                    "error": f"Field '{field_name}' requires a numeric value"
+                }), 400
+        else:
+            # String fields - use CONTAINS for partial matching
+            query = f"SELECT * FROM c WHERE CONTAINS(c['{field_name}'], @field_value, true)"
+        
+        parameters = [{"name": "@field_value", "value": field_value}]
+        
+        # Execute the filter query
+        filtered_results = list(company_meta.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+        
+        return jsonify({
+            "filter": {
+                "field": field_name,
+                "value": field_value
+            },
+            "total_results": len(filtered_results),
+            "companies": filtered_results
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
